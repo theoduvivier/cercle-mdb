@@ -16,12 +16,3 @@
   0% { transform: translateY(0) rotate(0deg); opacity: 1; }
   100% { transform: translateY(108vh) rotate(720deg); opacity: 0; }
 }
-
-/* Petite voiture qui traverse l'écran de succès */
-@keyframes drive-across {
-  0% { transform: translateX(-120%); }
-  100% { transform: translateX(120%); }
-}
-.drive-across {
-  animation: drive-across 2.4s ease-in-out forwards;
-}

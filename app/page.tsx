@@ -129,8 +129,12 @@ export default function Home() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
-        setForm({ ...EMPTY_FORM, ...JSON.parse(saved) })
+        const parsed = { ...EMPTY_FORM, ...JSON.parse(saved) }
+        setForm(parsed)
         setHasSaved(true)
+        // Pré-sélectionne les filtres de la liste sur les jours déclarés par l'utilisateur
+        setArrFilter(parsed.arr_date || '')
+        setDepFilter(parsed.dep_date || '')
       }
     } catch {
       /* localStorage indisponible ou JSON invalide : on ignore */
@@ -181,6 +185,9 @@ export default function Home() {
       } catch {
         /* localStorage indisponible : pas bloquant */
       }
+      // Aligne les filtres de la liste sur les jours qu'il vient de déclarer
+      setArrFilter(form.arr_date || '')
+      setDepFilter(form.dep_date || '')
       setSubmitted(true)
     } catch (e) {
       alert(`Erreur lors de l'enregistrement : ${e instanceof Error ? e.message : 'inconnue'}`)
@@ -273,9 +280,6 @@ export default function Home() {
           {submitted ? (
             <div className="text-center py-12">
               <Confetti />
-              <div className="overflow-hidden mb-2">
-                <div className="drive-across text-4xl inline-block">🚗💨</div>
-              </div>
               <div className="text-5xl mb-3">🎉</div>
               <h2 className="text-xl font-semibold text-ink mb-1">C&apos;est enregistré !</h2>
               <p className="text-sm text-gray-500 mb-6">On se retrouve à Marbella 🌴🍹 — tes infos sont visibles par tous les membres.</p>
