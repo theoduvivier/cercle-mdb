@@ -155,18 +155,15 @@ export default function Home() {
   return (
     <main className="max-w-xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-3xl mb-8 px-6 py-8 text-center bg-gradient-to-br from-teal-500 via-cyan-500 to-amber-400 shadow-lg">
-        <div className="absolute -top-3 left-4 text-3xl opacity-80 select-none">🌴</div>
-        <div className="absolute top-2 right-4 text-2xl opacity-80 select-none">🍹</div>
-        <div className="absolute -bottom-3 right-8 text-3xl opacity-70 select-none">🌴</div>
+      <div className="relative overflow-hidden rounded-2xl mb-8 px-6 py-8 text-center bg-gradient-to-br from-teal-700 to-cyan-800 shadow-md">
         <div className="relative">
           <div className="inline-flex items-center gap-2 mb-2">
             <span className="text-xs">⭕️</span>
-            <span className="text-xs font-semibold text-white/90 uppercase tracking-widest">Cercle MDB</span>
+            <span className="text-xs font-semibold text-white/80 uppercase tracking-widest">Cercle MDB</span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-1 drop-shadow-sm">Séminaire Marbella ☀️</h1>
-          <p className="text-sm text-white/90">Coordination des transferts aéroport 🚗</p>
-          <div className="inline-flex items-center gap-1.5 mt-3 bg-white/20 backdrop-blur rounded-full px-3 py-1 text-xs font-medium text-white">
+          <h1 className="text-3xl font-semibold text-white mb-1">Séminaire Marbella</h1>
+          <p className="text-sm text-white/80">Coordination des transferts aéroport</p>
+          <div className="inline-flex items-center gap-1.5 mt-3 bg-white/15 backdrop-blur rounded-full px-3 py-1 text-xs font-medium text-white">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
@@ -368,9 +365,9 @@ export default function Home() {
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-semibold py-3.5 rounded-xl text-sm shadow-md hover:shadow-lg transition-all active:scale-[0.99]"
+                className="w-full bg-teal-700 hover:bg-teal-800 disabled:bg-gray-200 disabled:text-gray-400 text-white font-medium py-3 rounded-xl text-sm transition-colors"
               >
-                {loading ? 'Enregistrement…' : '✈️ Enregistrer ma disponibilité'}
+                {loading ? 'Enregistrement…' : 'Enregistrer ma disponibilité'}
               </button>
             </div>
           )}
