@@ -35,6 +35,7 @@ export default function Home() {
     dep_date: '',
     dep_time: '',
     dep_flight: '',
+    transport_type: '',
     comment: '',
   })
 
@@ -245,18 +246,32 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Commentaire */}
+              {/* Transport partagé */}
               <div className="bg-white border border-gray-200 rounded-xl p-5">
-                <div>
-                  <label className="block text-sm text-gray-500 mb-1">Commentaire (covoiturage, taxi…)</label>
-                  <input
-                    type="text"
-                    placeholder="Ex : Je loue une voiture, dispo pour 2 places"
-                    value={form.comment}
-                    onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
+                <label className="block text-sm text-gray-500 mb-2">Transport que tu souhaites partager</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Uber', 'Autre'].map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setForm(f => ({ ...f, transport_type: t, comment: t === 'Uber' ? '' : f.comment }))}
+                      className={`border rounded-lg px-3 py-2.5 text-sm transition-all ${form.transport_type === t ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-gray-200 text-gray-700 hover:border-gray-300'}`}
+                    >
+                      {t}
+                    </button>
+                  ))}
                 </div>
+                {form.transport_type === 'Autre' && (
+                  <div className="mt-4">
+                    <label className="block text-sm text-gray-500 mb-1">Précise (covoiturage, taxi…)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex : Je loue une voiture, dispo pour 2 places"
+                      value={form.comment}
+                      onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                )}
               </div>
 
               <button
@@ -352,8 +367,11 @@ export default function Home() {
                                   {'  '}
                                   🛫 {p.dep_date}{p.dep_time ? ` à ${p.dep_time}` : ''}{p.dep_flight ? ` · ${p.dep_flight}` : ''}
                                 </p>
-                                {p.comment && (
-                                  <p className="text-xs text-gray-400 italic mt-0.5">&quot;{p.comment}&quot;</p>
+                                {p.transport_type && (
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    🚗 {p.transport_type}
+                                    {p.transport_type === 'Autre' && p.comment ? ` — ${p.comment}` : ''}
+                                  </p>
                                 )}
                               </div>
                             </div>
