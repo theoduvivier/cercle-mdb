@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Participant } from '../lib/supabase'
 
-const ARR_DATES = ['Dimanche 15 juin', 'Lundi 16 juin']
-const DEP_DATES = ['Mercredi 18 juin', 'Jeudi 19 juin']
+const ARR_DATES = ['Lundi 15 juin', 'Mardi 16 juin']
+const DEP_DATES = ['Jeudi 18 juin', 'Vendredi 19 juin']
 
 function initials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -182,7 +182,7 @@ export default function Home() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm text-gray-500 mb-1">Heure d&apos;arrivée</label>
+                    <label className="block text-sm text-gray-500 mb-1">Heure d&apos;arrivée du vol</label>
                     <input
                       type="text"
                       placeholder="14h30"
@@ -223,7 +223,7 @@ export default function Home() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm text-gray-500 mb-1">Heure de départ</label>
+                    <label className="block text-sm text-gray-500 mb-1">Heure de départ du vol</label>
                     <input
                       type="text"
                       placeholder="19h15"
