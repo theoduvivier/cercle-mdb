@@ -85,9 +85,9 @@ function ParticipantCard({ p, primary }: { p: Participant; primary: 'arr' | 'dep
   const flight = primary === 'arr' ? p.arr_flight : p.dep_flight
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 flex gap-4 items-start hover:border-gold/40 hover:shadow-sm transition-all">
-      <div className="flex flex-col items-center justify-center flex-shrink-0 w-14">
+      <div className="flex flex-col items-center justify-center flex-shrink-0 w-16">
         <span className="text-lg font-bold text-gold leading-none whitespace-nowrap">{time || '—'}</span>
-        <span className="text-[10px] text-gray-400 uppercase tracking-wide mt-1">{primary === 'arr' ? 'arrivée' : 'départ'}</span>
+        <span className="text-[10px] text-gray-400 uppercase tracking-wide mt-1 text-center leading-tight">{primary === 'arr' ? 'arrivée vol' : 'départ vol'}</span>
       </div>
       <div className="w-px self-stretch bg-gray-100" />
       <div className="flex-1 min-w-0">
@@ -110,15 +110,6 @@ function ParticipantCard({ p, primary }: { p: Participant; primary: 'arr' | 'dep
       </div>
     </div>
   )
-}
-
-function groupBy<T>(arr: T[], key: keyof T): Record<string, T[]> {
-  return arr.reduce((acc, item) => {
-    const k = String(item[key])
-    if (!acc[k]) acc[k] = []
-    acc[k].push(item)
-    return acc
-  }, {} as Record<string, T[]>)
 }
 
 export default function Home() {
@@ -222,16 +213,26 @@ export default function Home() {
     }
   }
 
-  const filtered = participants.filter(p => {
-    if (arrFilter && p.arr_date !== arrFilter) return false
-    if (depFilter && p.dep_date !== depFilter) return false
-    return true
-  })
+  const arrivals = participants
+    .filter(p => p.arr_date && (!arrFilter || p.arr_date === arrFilter))
+    .slice()
+    .sort((a, b) => {
+      if (!a.arr_time) return 1
+      if (!b.arr_time) return -1
+      return a.arr_time.localeCompare(b.arr_time)
+    })
 
-  const grouped = groupBy(filtered, 'arr_date')
+  const departures = participants
+    .filter(p => p.dep_date && (!depFilter || p.dep_date === depFilter))
+    .slice()
+    .sort((a, b) => {
+      if (!a.dep_time) return 1
+      if (!b.dep_time) return -1
+      return a.dep_time.localeCompare(b.dep_time)
+    })
 
   return (
-    <main className="max-w-xl mx-auto px-4 py-8">
+    <main className={`mx-auto px-4 py-8 transition-all ${tab === 'list' ? 'max-w-5xl' : 'max-w-xl'}`}>
       {/* Header */}
       <div className="relative overflow-hidden rounded-2xl mb-8 px-6 py-8 text-center bg-gradient-to-br from-navy via-navy-mid to-navy-surface shadow-lg ring-1 ring-gold/20">
         <div className="relative">
@@ -530,56 +531,39 @@ export default function Home() {
 
           {listLoading ? (
             <div className="text-center py-12 text-sm text-gray-400">Chargement…</div>
-          ) : filtered.length === 0 ? (
+          ) : arrivals.length === 0 && departures.length === 0 ? (
             <div className="text-center py-12 text-sm text-gray-400">Aucun participant pour l&apos;instant.</div>
           ) : (
-            <div className="space-y-6">
-              {ARR_DATES.map(date => {
-                const group = grouped[date]
-                if (!group?.length) return null
-                return (
-                  <div key={date}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Arrivée {date}</span>
-                      <div className="flex-1 h-px bg-gray-200" />
-                    </div>
-                    <div className="space-y-2">
-                      {group
-                        .slice()
-                        .sort((a, b) => {
-                          if (!a.arr_time) return 1
-                          if (!b.arr_time) return -1
-                          return a.arr_time.localeCompare(b.arr_time)
-                        })
-                        .map((p, i) => <ParticipantCard key={i} p={p} primary="arr" />)}
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              {/* Colonne Arrivées */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-semibold text-ink uppercase tracking-wider">✈️ Arrivées</span>
+                  <span className="text-xs text-gray-400">{arrFilter || 'tous les jours'}</span>
+                </div>
+                <div className="space-y-2">
+                  {arrivals.length === 0 ? (
+                    <p className="text-xs text-gray-400 py-4">Aucune arrivée ce jour-là.</p>
+                  ) : (
+                    arrivals.map((p, i) => <ParticipantCard key={i} p={p} primary="arr" />)
+                  )}
+                </div>
+              </div>
 
-              {/* Participants ayant renseigné uniquement leur départ */}
-              {(() => {
-                const depOnly = filtered.filter(p => !p.arr_date && p.dep_date)
-                if (!depOnly.length) return null
-                return (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Départ uniquement</span>
-                      <div className="flex-1 h-px bg-gray-200" />
-                    </div>
-                    <div className="space-y-2">
-                      {depOnly
-                        .slice()
-                        .sort((a, b) => {
-                          if (!a.dep_time) return 1
-                          if (!b.dep_time) return -1
-                          return a.dep_time.localeCompare(b.dep_time)
-                        })
-                        .map((p, i) => <ParticipantCard key={i} p={p} primary="dep" />)}
-                    </div>
-                  </div>
-                )
-              })()}
+              {/* Colonne Départs */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-semibold text-ink uppercase tracking-wider">🛫 Départs</span>
+                  <span className="text-xs text-gray-400">{depFilter || 'tous les jours'}</span>
+                </div>
+                <div className="space-y-2">
+                  {departures.length === 0 ? (
+                    <p className="text-xs text-gray-400 py-4">Aucun départ ce jour-là.</p>
+                  ) : (
+                    departures.map((p, i) => <ParticipantCard key={i} p={p} primary="dep" />)
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </>
