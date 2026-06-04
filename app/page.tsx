@@ -6,8 +6,62 @@ import type { Participant } from '../lib/supabase'
 const ARR_DATES = ['Lundi 15 juin', 'Mardi 16 juin']
 const DEP_DATES = ['Jeudi 18 juin', 'Vendredi 19 juin']
 
-function initials(name: string) {
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+// Normalise une heure saisie (14:30, 1430, 9h5…) au format 14h30
+function formatTime(raw: string): string {
+  if (!raw.trim()) return ''
+  const parts = raw.trim().split(/[^0-9]+/).filter(Boolean)
+  if (parts.length === 0) return raw.trim()
+  let h: string, m: string
+  if (parts.length >= 2) {
+    h = parts[0]
+    m = parts[1]
+  } else {
+    const d = parts[0]
+    if (d.length <= 2) { h = d; m = '0' }
+    else if (d.length === 3) { h = d.slice(0, 1); m = d.slice(1) }
+    else { h = d.slice(0, 2); m = d.slice(2, 4) }
+  }
+  const hn = parseInt(h, 10)
+  const mn = parseInt(m, 10)
+  if (isNaN(hn) || hn > 23 || isNaN(mn) || mn > 59) return raw.trim()
+  return `${String(hn).padStart(2, '0')}h${String(mn).padStart(2, '0')}`
+}
+
+function Confetti() {
+  const colors = ['#14b8a6', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#22c55e', '#a855f7']
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden z-50">
+      {Array.from({ length: 90 }).map((_, i) => {
+        const left = Math.random() * 100
+        const delay = Math.random() * 0.6
+        const duration = 2.4 + Math.random() * 2
+        const size = 6 + Math.random() * 9
+        return (
+          <span
+            key={i}
+            className="confetti-piece"
+            style={{
+              left: `${left}%`,
+              width: `${size}px`,
+              height: `${size}px`,
+              background: colors[i % colors.length],
+              animationDelay: `${delay}s`,
+              animationDuration: `${duration}s`,
+            }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+function TransportBadge({ dir, type, detail }: { dir: string; type: string; detail: string }) {
+  const icon = type === 'Uber' ? '🚕' : '🚗'
+  return (
+    <span className="inline-flex items-center gap-1 text-xs bg-teal-50 text-teal-800 border border-teal-100 rounded-full px-2 py-0.5">
+      {icon} {dir} : {type}{type === 'Autre' && detail ? ` (${detail})` : ''}
+    </span>
+  )
 }
 
 function groupBy<T>(arr: T[], key: keyof T): Record<string, T[]> {
@@ -35,8 +89,10 @@ export default function Home() {
     dep_date: '',
     dep_time: '',
     dep_flight: '',
-    transport_type: '',
-    comment: '',
+    arr_transport: '',
+    arr_transport_detail: '',
+    dep_transport: '',
+    dep_transport_detail: '',
   })
 
   const fetchParticipants = useCallback(async () => {
@@ -60,6 +116,12 @@ export default function Home() {
     if (!form.nom.trim()) { alert('Indique ton prénom et nom.'); return }
     if (!form.arr_date) { alert("Sélectionne ta date d'arrivée."); return }
     if (!form.dep_date) { alert('Sélectionne ta date de départ.'); return }
+    // Prévient si le transport n'est renseigné que pour une seule direction
+    if (!!form.arr_transport !== !!form.dep_transport) {
+      const manque = form.arr_transport ? 'le départ' : "l'arrivée"
+      const ok = confirm(`Tu n'as renseigné le transport que pour ${form.arr_transport ? "l'arrivée" : 'le départ'}, pas pour ${manque}.\n\nC'est normal ? Clique sur OK pour enregistrer quand même.`)
+      if (!ok) return
+    }
     setLoading(true)
     try {
       const res = await fetch('/api/participants', {
@@ -93,18 +155,23 @@ export default function Home() {
   return (
     <main className="max-w-xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 mb-2">
-          <span className="text-xs">⭕️</span>
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-widest">Cercle MDB</span>
-        </div>
-        <h1 className="text-2xl font-medium text-gray-900 mb-1">Séminaire Marbella</h1>
-        <p className="text-sm text-gray-500">Coordination des transferts aéroport</p>
-        <div className="inline-flex items-center gap-1.5 mt-3 bg-gray-100 rounded-full px-3 py-1 text-xs text-gray-500">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          16 – 18 juin 2025 · Marbella
+      <div className="relative overflow-hidden rounded-3xl mb-8 px-6 py-8 text-center bg-gradient-to-br from-teal-500 via-cyan-500 to-amber-400 shadow-lg">
+        <div className="absolute -top-3 left-4 text-3xl opacity-80 select-none">🌴</div>
+        <div className="absolute top-2 right-4 text-2xl opacity-80 select-none">🍹</div>
+        <div className="absolute -bottom-3 right-8 text-3xl opacity-70 select-none">🌴</div>
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 mb-2">
+            <span className="text-xs">⭕️</span>
+            <span className="text-xs font-semibold text-white/90 uppercase tracking-widest">Cercle MDB</span>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-1 drop-shadow-sm">Séminaire Marbella ☀️</h1>
+          <p className="text-sm text-white/90">Coordination des transferts aéroport 🚗</p>
+          <div className="inline-flex items-center gap-1.5 mt-3 bg-white/20 backdrop-blur rounded-full px-3 py-1 text-xs font-medium text-white">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            15 – 19 juin 2025 · Marbella
+          </div>
         </div>
       </div>
 
@@ -129,13 +196,13 @@ export default function Home() {
         <>
           {submitted ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+              <Confetti />
+              <div className="overflow-hidden mb-2">
+                <div className="drive-across text-4xl inline-block">🚗💨</div>
               </div>
-              <h2 className="text-lg font-medium text-gray-900 mb-1">C&apos;est enregistré !</h2>
-              <p className="text-sm text-gray-500 mb-6">Tes infos sont visibles par tous les membres.</p>
+              <div className="text-5xl mb-3">🎉</div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-1">C&apos;est enregistré !</h2>
+              <p className="text-sm text-gray-500 mb-6">On se retrouve à Marbella 🌴🍹 — tes infos sont visibles par tous les membres.</p>
               <div className="flex gap-3 justify-center">
                 <button
                   onClick={() => setTab('list')}
@@ -193,6 +260,7 @@ export default function Home() {
                       placeholder="14h30"
                       value={form.arr_time}
                       onChange={e => setForm(f => ({ ...f, arr_time: e.target.value }))}
+                      onBlur={e => setForm(f => ({ ...f, arr_time: formatTime(e.target.value) }))}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
@@ -206,6 +274,29 @@ export default function Home() {
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm text-gray-500 mb-2">Transport à partager (optionnel)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Uber', 'Autre'].map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setForm(f => ({ ...f, arr_transport: f.arr_transport === t ? '' : t, arr_transport_detail: t === 'Uber' ? '' : f.arr_transport_detail }))}
+                        className={`border rounded-lg px-3 py-2.5 text-sm transition-all ${form.arr_transport === t ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-gray-200 text-gray-700 hover:border-gray-300'}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  {form.arr_transport === 'Autre' && (
+                    <input
+                      type="text"
+                      placeholder="Ex : Je loue une voiture, dispo pour 2 places"
+                      value={form.arr_transport_detail}
+                      onChange={e => setForm(f => ({ ...f, arr_transport_detail: e.target.value }))}
+                      className="w-full mt-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -234,6 +325,7 @@ export default function Home() {
                       placeholder="19h15"
                       value={form.dep_time}
                       onChange={e => setForm(f => ({ ...f, dep_time: e.target.value }))}
+                      onBlur={e => setForm(f => ({ ...f, dep_time: formatTime(e.target.value) }))}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
@@ -248,42 +340,37 @@ export default function Home() {
                     />
                   </div>
                 </div>
-              </div>
-
-              {/* Transport partagé */}
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
-                <label className="block text-sm text-gray-500 mb-2">Transport que tu souhaites partager</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Uber', 'Autre'].map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setForm(f => ({ ...f, transport_type: t, comment: t === 'Uber' ? '' : f.comment }))}
-                      className={`border rounded-lg px-3 py-2.5 text-sm transition-all ${form.transport_type === t ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-gray-200 text-gray-700 hover:border-gray-300'}`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-                {form.transport_type === 'Autre' && (
-                  <div className="mt-4">
-                    <label className="block text-sm text-gray-500 mb-1">Précise (covoiturage, taxi…)</label>
+                <div className="mt-4">
+                  <label className="block text-sm text-gray-500 mb-2">Transport à partager (optionnel)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Uber', 'Autre'].map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setForm(f => ({ ...f, dep_transport: f.dep_transport === t ? '' : t, dep_transport_detail: t === 'Uber' ? '' : f.dep_transport_detail }))}
+                        className={`border rounded-lg px-3 py-2.5 text-sm transition-all ${form.dep_transport === t ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-gray-200 text-gray-700 hover:border-gray-300'}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  {form.dep_transport === 'Autre' && (
                     <input
                       type="text"
                       placeholder="Ex : Je loue une voiture, dispo pour 2 places"
-                      value={form.comment}
-                      onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      value={form.dep_transport_detail}
+                      onChange={e => setForm(f => ({ ...f, dep_transport_detail: e.target.value }))}
+                      className="w-full mt-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="w-full bg-teal-500 hover:bg-teal-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-medium py-3 rounded-xl text-sm transition-colors"
+                className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-semibold py-3.5 rounded-xl text-sm shadow-md hover:shadow-lg transition-all active:scale-[0.99]"
               >
-                {loading ? 'Enregistrement…' : 'Enregistrer ma disponibilité'}
+                {loading ? 'Enregistrement…' : '✈️ Enregistrer ma disponibilité'}
               </button>
             </div>
           )}
@@ -349,33 +436,40 @@ export default function Home() {
                     </div>
                     <div className="space-y-2">
                       {group
-                        .sort((a, b) => (a.arr_time || '').localeCompare(b.arr_time || ''))
+                        .slice()
+                        .sort((a, b) => {
+                          if (!a.arr_time) return 1
+                          if (!b.arr_time) return -1
+                          return a.arr_time.localeCompare(b.arr_time)
+                        })
                         .map((p, i) => {
                           const sameTime = group.filter(x => x.arr_time && x.arr_time === p.arr_time).length > 1
                           return (
-                            <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 flex gap-3">
-                              <div className="w-9 h-9 rounded-full bg-teal-50 flex items-center justify-center text-xs font-medium text-teal-900 flex-shrink-0">
-                                {initials(p.nom)}
+                            <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 flex gap-4 items-start hover:border-teal-200 hover:shadow-sm transition-all">
+                              {/* Heure d'arrivée bien visible */}
+                              <div className="flex flex-col items-center justify-center flex-shrink-0 w-14">
+                                <span className="text-lg font-bold text-teal-700 leading-none whitespace-nowrap">{p.arr_time || '—'}</span>
+                                <span className="text-[10px] text-gray-400 uppercase tracking-wide mt-1">arrivée</span>
                               </div>
+                              <div className="w-px self-stretch bg-gray-100" />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-sm font-medium text-gray-900">{p.nom}</span>
+                                  <span className="text-sm font-semibold text-gray-900">{p.nom}</span>
+                                  {p.arr_flight && <span className="text-xs text-gray-400">{p.arr_flight}</span>}
                                   {sameTime && (
                                     <span className="text-xs bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full border border-amber-100">
                                       groupe possible
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  ✈️ {p.arr_date}{p.arr_time ? ` à ${p.arr_time}` : ''}{p.arr_flight ? ` · ${p.arr_flight}` : ''}
-                                  {'  '}
-                                  🛫 {p.dep_date}{p.dep_time ? ` à ${p.dep_time}` : ''}{p.dep_flight ? ` · ${p.dep_flight}` : ''}
+                                <p className="text-xs text-gray-500 mt-1">
+                                  🛫 Départ {p.dep_date}{p.dep_time ? ` à ${p.dep_time}` : ''}{p.dep_flight ? ` · ${p.dep_flight}` : ''}
                                 </p>
-                                {p.transport_type && (
-                                  <p className="text-xs text-gray-500 mt-0.5">
-                                    🚗 {p.transport_type}
-                                    {p.transport_type === 'Autre' && p.comment ? ` — ${p.comment}` : ''}
-                                  </p>
+                                {(p.arr_transport || p.dep_transport) && (
+                                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                    {p.arr_transport && <TransportBadge dir="arrivée" type={p.arr_transport} detail={p.arr_transport_detail} />}
+                                    {p.dep_transport && <TransportBadge dir="départ" type={p.dep_transport} detail={p.dep_transport_detail} />}
+                                  </div>
                                 )}
                               </div>
                             </div>

@@ -14,7 +14,9 @@ export type Participant = {
   dep_date: string
   dep_time: string
   dep_flight: string
-  transport_type: string
-  comment: string
+  arr_transport: string
+  arr_transport_detail: string
+  dep_transport: string
+  dep_transport_detail: string
   created_at?: string
 }
