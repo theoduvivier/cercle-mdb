@@ -90,7 +90,7 @@ export default function Home() {
       {/* Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 mb-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-teal-500" />
+          <span className="text-xs">⭕️</span>
           <span className="text-xs font-medium text-gray-500 uppercase tracking-widest">Cercle MDB</span>
         </div>
         <h1 className="text-2xl font-medium text-gray-900 mb-1">Séminaire Marbella</h1>
