@@ -43,6 +43,11 @@ function formatTime(raw: string): string {
   return `${String(hn).padStart(2, '0')}h${String(mn).padStart(2, '0')}`
 }
 
+// Normalise un numéro de vol : supprime tous les espaces et met en majuscules (VY 8242 → VY8242)
+function formatFlight(raw: string): string {
+  return raw.replace(/\s+/g, '').toUpperCase()
+}
+
 function Confetti() {
   const colors = ['#B8923E', '#D4AF5A', '#C9A24E', '#F5F0E8', '#EBE4D6', '#161B41', '#ffffff']
   return (
@@ -71,40 +76,40 @@ function Confetti() {
   )
 }
 
-function TransportBadge({ dir, type, detail }: { dir: string; type: string; detail: string }) {
+function TransportBadge({ type, detail }: { type: string; detail: string }) {
   const icon = type === 'Uber' ? '🚕' : '🚗'
   return (
     <span className="inline-flex items-center gap-1 text-xs bg-cream text-ink border border-gold/30 rounded-full px-2 py-0.5">
-      {icon} {dir} : {type}{type === 'Autre' && detail ? ` (${detail})` : ''}
+      {icon} {type}{type === 'Autre' && detail ? ` (${detail})` : ''}
     </span>
   )
 }
 
-function ParticipantCard({ p, primary }: { p: Participant; primary: 'arr' | 'dep' }) {
+function ParticipantCard({ p, primary, index = 0 }: { p: Participant; primary: 'arr' | 'dep'; index?: number }) {
   const time = primary === 'arr' ? p.arr_time : p.dep_time
   const flight = primary === 'arr' ? p.arr_flight : p.dep_flight
+  const transport = primary === 'arr' ? p.arr_transport : p.dep_transport
+  const transportDetail = primary === 'arr' ? p.arr_transport_detail : p.dep_transport_detail
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 flex gap-4 items-start hover:border-gold/40 hover:shadow-sm transition-all">
-      <div className="flex flex-col items-center justify-center flex-shrink-0 w-16">
-        <span className="text-lg font-bold text-gold leading-none whitespace-nowrap">{time || '—'}</span>
-        <span className="text-[10px] text-gray-400 uppercase tracking-wide mt-1 text-center leading-tight">{primary === 'arr' ? 'arrivée vol' : 'départ vol'}</span>
+    <div
+      className="group relative bg-white rounded-2xl p-4 flex gap-4 items-start shadow-card ring-1 ring-gray-100 hover:ring-gold/40 hover:shadow-card-hover hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-300 animate-fade-up"
+      style={{ animationDelay: `${Math.min(index, 12) * 45}ms` }}
+    >
+      {/* accent doré latéral au survol */}
+      <div className="absolute left-0 top-4 bottom-4 w-0.5 rounded-full bg-gold-gradient opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="flex flex-col items-center justify-center flex-shrink-0 w-20">
+        <span className="font-heading text-xl font-extrabold text-gold-gradient leading-none whitespace-nowrap">{time || '—'}</span>
+        <span className="text-[10px] text-gray-400 uppercase tracking-wide mt-1 whitespace-nowrap">{primary === 'arr' ? 'arrivée vol' : 'départ vol'}</span>
       </div>
-      <div className="w-px self-stretch bg-gray-100" />
+      <div className="w-px self-stretch bg-gradient-to-b from-transparent via-gray-200 to-transparent" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-ink">{p.nom}</span>
-          {flight && <span className="text-xs text-gray-400">{flight}</span>}
+          {flight && <span className="text-xs text-gray-400">{formatFlight(flight)}</span>}
         </div>
-        {primary === 'arr' && p.dep_date && (
-          <p className="text-xs text-gray-500 mt-1">🛫 Départ {p.dep_date}{p.dep_time ? ` à ${p.dep_time}` : ''}{p.dep_flight ? ` · ${p.dep_flight}` : ''}</p>
-        )}
-        {primary === 'dep' && p.arr_date && (
-          <p className="text-xs text-gray-500 mt-1">✈️ Arrivée {p.arr_date}{p.arr_time ? ` à ${p.arr_time}` : ''}{p.arr_flight ? ` · ${p.arr_flight}` : ''}</p>
-        )}
-        {(p.arr_transport || p.dep_transport) && (
-          <div className="flex flex-wrap gap-1.5 mt-1.5">
-            {p.arr_transport && <TransportBadge dir="arrivée" type={p.arr_transport} detail={p.arr_transport_detail} />}
-            {p.dep_transport && <TransportBadge dir="départ" type={p.dep_transport} detail={p.dep_transport_detail} />}
+        {transport && (
+          <div className="mt-1.5">
+            <TransportBadge type={transport} detail={transportDetail} />
           </div>
         )}
       </div>
@@ -117,6 +122,7 @@ export default function Home() {
   const [participants, setParticipants] = useState<Participant[]>([])
   const [arrFilter, setArrFilter] = useState('')
   const [depFilter, setDepFilter] = useState('')
+  const [view, setView] = useState<'arr' | 'dep'>('arr') // bascule Arrivées/Départs sur mobile
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [listLoading, setListLoading] = useState(false)
@@ -167,12 +173,19 @@ export default function Home() {
       const ok = confirm(`Vous avez peut-être oublié quelque chose : ${oubli} n'est pas renseigné.\n\nL'un des deux suffit — cliquez sur OK pour continuer.`)
       if (!ok) return
     }
+    // Numéros de vol nettoyés (sans espaces, majuscules) avant envoi
+    const payload = {
+      ...form,
+      arr_flight: formatFlight(form.arr_flight),
+      dep_flight: formatFlight(form.dep_flight),
+    }
+    setForm(payload)
     setLoading(true)
     try {
       const res = await fetch('/api/participants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -180,7 +193,7 @@ export default function Home() {
       }
       // Mémorise la déclaration sur cet appareil pour la retrouver/modifier plus tard
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(form))
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
         setHasSaved(true)
       } catch {
         /* localStorage indisponible : pas bloquant */
@@ -239,17 +252,21 @@ export default function Home() {
     })
 
   return (
-    <main className={`mx-auto px-4 py-8 transition-all ${tab === 'list' ? 'max-w-5xl' : 'max-w-xl'}`}>
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl mb-8 px-6 py-8 text-center bg-gradient-to-br from-navy via-navy-mid to-navy-surface shadow-lg ring-1 ring-gold/20">
+    <main className="mx-auto px-4 py-8 max-w-5xl">
+      {/* Header — pleine largeur sur mobile, carte arrondie sur grand écran */}
+      <div className="gold-halo sheen relative overflow-hidden mb-8 px-6 py-10 text-center bg-navy-gradient shadow-header rounded-b-3xl -mx-4 -mt-8 sm:mx-0 sm:mt-0 sm:rounded-3xl sm:ring-1 sm:ring-gold/25 animate-fade-in">
+        {/* liseré doré supérieur */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold to-transparent opacity-60" />
         <div className="relative">
-          <div className="inline-flex items-center gap-2 mb-2">
+          <div className="inline-flex items-center gap-2 mb-3">
             <span className="text-xs">⭕️</span>
-            <span className="text-xs font-semibold text-gold uppercase tracking-widest">Cercle MDB</span>
+            <span className="text-[11px] font-semibold text-gold uppercase tracking-[0.25em]">Cercle MDB</span>
           </div>
-          <h1 className="text-3xl font-semibold text-white mb-1">Séminaire Marbella</h1>
-          <p className="text-sm text-white/60">Coordination des transferts aéroport</p>
-          <div className="inline-flex items-center gap-1.5 mt-3 bg-gold/10 border border-gold/30 backdrop-blur rounded-full px-3 py-1 text-xs font-medium text-gold-bright">
+          <h1 className="font-heading text-4xl sm:text-5xl font-bold text-white mb-1 tracking-tight">
+            Séminaire <span className="gold-shimmer">Marbella</span> <span className="sun-pulse text-3xl align-middle">☀️</span>
+          </h1>
+          <p className="text-sm text-white/55">Coordination des transferts aéroport</p>
+          <div className="inline-flex items-center gap-1.5 mt-4 bg-gold/10 border border-gold/30 backdrop-blur rounded-full px-3.5 py-1.5 text-xs font-medium text-gold-bright shadow-gold/0">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
@@ -259,24 +276,24 @@ export default function Home() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border border-gray-200 rounded-xl overflow-hidden mb-6">
+      <div className="flex gap-1 p-1 bg-white/70 backdrop-blur border border-gray-200/80 rounded-2xl mb-6 max-w-xl mx-auto shadow-card">
         <button
           onClick={() => setTab('form')}
-          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${tab === 'form' ? 'bg-gray-100 text-ink' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+          className={`flex-1 py-2.5 text-sm font-medium rounded-xl transition-all active:scale-[0.98] ${tab === 'form' ? 'bg-navy-gradient text-white shadow-sm' : 'text-ink-muted hover:bg-cream/60'}`}
         >
           Mon arrivée / départ
         </button>
         <button
           onClick={() => setTab('list')}
-          className={`flex-1 py-2.5 text-sm font-medium transition-colors border-l border-gray-200 ${tab === 'list' ? 'bg-gray-100 text-ink' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+          className={`flex-1 py-2.5 text-sm font-medium rounded-xl transition-all active:scale-[0.98] ${tab === 'list' ? 'bg-navy-gradient text-white shadow-sm' : 'text-ink-muted hover:bg-cream/60'}`}
         >
-          Arrivées / Départs ({participants.length || '…'})
+          Arrivées / Départs
         </button>
       </div>
 
       {/* FORM TAB */}
       {tab === 'form' && (
-        <>
+        <div className="max-w-xl mx-auto animate-fade-in">
           {submitted ? (
             <div className="text-center py-12">
               <Confetti />
@@ -286,7 +303,7 @@ export default function Home() {
               <div className="flex gap-3 justify-center">
                 <button
                   onClick={() => setTab('list')}
-                  className="px-4 py-2 bg-gold text-white text-sm font-medium rounded-lg hover:bg-gold-light transition-colors"
+                  className="btn-shine px-5 py-2.5 bg-gold-gradient text-white text-sm font-semibold rounded-xl shadow-gold hover:-translate-y-0.5 transition-all"
                 >
                   Voir qui est là
                 </button>
@@ -300,6 +317,10 @@ export default function Home() {
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="relative overflow-hidden bg-white rounded-2xl pl-5 pr-4 py-3.5 text-xs text-ink-muted leading-relaxed shadow-card ring-1 ring-gold/15 animate-fade-up">
+                <div className="absolute left-0 inset-y-0 w-1 bg-gold-gradient" />
+                Renseigne tes heures d&apos;arrivée et de départ : tu pourras ensuite repérer les personnes qui arrivent à peu près en même temps que toi et <span className="text-ink font-semibold">mutualiser les transferts</span> (Uber ou autre) vers le Club Med. ☀️
+              </div>
               {hasSaved && (
                 <div className="flex items-start gap-3 bg-cream border border-gold/30 rounded-xl px-4 py-3">
                   <span className="text-base leading-none mt-0.5">↩️</span>
@@ -310,7 +331,7 @@ export default function Home() {
                 </div>
               )}
               {/* Infos */}
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <div className="bg-white rounded-2xl p-5 shadow-card ring-1 ring-gray-100">
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Mes infos</p>
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">Prénom et nom</label>
@@ -325,7 +346,7 @@ export default function Home() {
               </div>
 
               {/* Arrivée */}
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <div className="bg-white rounded-2xl p-5 shadow-card ring-1 ring-gray-100">
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">✈️ Arrivée</p>
                 <div className="mb-4">
                   <label className="block text-sm text-gray-500 mb-2">Date d&apos;arrivée</label>
@@ -360,6 +381,7 @@ export default function Home() {
                       placeholder="VY8242"
                       value={form.arr_flight}
                       onChange={e => setForm(f => ({ ...f, arr_flight: e.target.value }))}
+                      onBlur={e => setForm(f => ({ ...f, arr_flight: formatFlight(e.target.value) }))}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold"
                     />
                   </div>
@@ -390,7 +412,7 @@ export default function Home() {
               </div>
 
               {/* Départ */}
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <div className="bg-white rounded-2xl p-5 shadow-card ring-1 ring-gray-100">
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">🛫 Départ</p>
                 <div className="mb-4">
                   <label className="block text-sm text-gray-500 mb-2">Date de départ</label>
@@ -425,6 +447,7 @@ export default function Home() {
                       placeholder="VY8243"
                       value={form.dep_flight}
                       onChange={e => setForm(f => ({ ...f, dep_flight: e.target.value }))}
+                      onBlur={e => setForm(f => ({ ...f, dep_flight: formatFlight(e.target.value) }))}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold"
                     />
                   </div>
@@ -457,7 +480,7 @@ export default function Home() {
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="w-full bg-gold hover:bg-gold-light disabled:bg-gray-200 disabled:text-gray-400 text-white font-medium py-3 rounded-xl text-sm transition-colors"
+                className="btn-shine w-full bg-gold-gradient disabled:bg-none disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none text-white font-semibold py-3.5 rounded-xl text-sm shadow-gold hover:shadow-card-hover hover:-translate-y-0.5 active:translate-y-0 transition-all"
               >
                 {loading ? 'Enregistrement…' : hasSaved ? 'Mettre à jour ma disponibilité' : 'Enregistrer ma disponibilité'}
               </button>
@@ -473,64 +496,88 @@ export default function Home() {
               )}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* LIST TAB */}
       {tab === 'list' && (
         <>
-          {/* Filters */}
-          <div className="space-y-2 mb-4">
-            {/* Arrivée */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider w-16 flex-shrink-0">✈️ Arrivée</span>
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => setArrFilter('')}
-                  className={`px-3 py-1 rounded-full text-xs border transition-colors ${arrFilter === '' ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                >
-                  Toutes
-                </button>
-                {ARR_DATES.map(d => (
-                  <button
-                    key={d}
-                    onClick={() => setArrFilter(arrFilter === d ? '' : d)}
-                    className={`px-3 py-1 rounded-full text-xs border transition-colors ${arrFilter === d ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {/* Départ */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider w-16 flex-shrink-0">🛫 Départ</span>
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => setDepFilter('')}
-                  className={`px-3 py-1 rounded-full text-xs border transition-colors ${depFilter === '' ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                >
-                  Tous
-                </button>
-                {DEP_DATES.map(d => (
-                  <button
-                    key={d}
-                    onClick={() => setDepFilter(depFilter === d ? '' : d)}
-                    className={`px-3 py-1 rounded-full text-xs border transition-colors ${depFilter === d ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-end">
+          <div className="relative overflow-hidden bg-white rounded-2xl pl-5 pr-4 py-3.5 text-xs text-ink-muted leading-relaxed mb-4 shadow-card ring-1 ring-gold/15 animate-fade-up">
+            <div className="absolute left-0 inset-y-0 w-1 bg-gold-gradient" />
+            Qui arrive et qui repart quand. Repère les personnes sur <span className="text-ink font-semibold">tes créneaux d&apos;arrivée et de départ</span> pour vous <span className="text-ink font-semibold">partager un transfert</span> (Uber ou autre) vers et depuis le Club Med. ☀️
+          </div>
+          {/* Filtres */}
+          <div className="bg-white rounded-2xl p-4 mb-4 shadow-card ring-1 ring-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Filtres</span>
               <button
                 onClick={fetchParticipants}
-                className="px-3 py-1 rounded-full text-xs border bg-white text-gray-500 border-gray-200 hover:border-gray-300 transition-colors"
+                className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
               >
                 ↻ Actualiser
               </button>
             </div>
+            <div>
+              {/* Arrivée */}
+              <div>
+                <span className="block text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-2 whitespace-nowrap">✈️ Arrivée</span>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => setArrFilter('')}
+                    className={`px-3 py-1 rounded-full text-xs border transition-all active:scale-95 ${arrFilter === '' ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                  >
+                    Toutes
+                  </button>
+                  {ARR_DATES.map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setArrFilter(arrFilter === d ? '' : d)}
+                      className={`px-3 py-1 rounded-full text-xs border transition-all active:scale-95 ${arrFilter === d ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="h-px bg-gray-100 my-3" />
+              {/* Départ */}
+              <div>
+                <span className="block text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-2 whitespace-nowrap">🛫 Départ</span>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => setDepFilter('')}
+                    className={`px-3 py-1 rounded-full text-xs border transition-all active:scale-95 ${depFilter === '' ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                  >
+                    Tous
+                  </button>
+                  {DEP_DATES.map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setDepFilter(depFilter === d ? '' : d)}
+                      className={`px-3 py-1 rounded-full text-xs border transition-all active:scale-95 ${depFilter === d ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bascule Arrivées / Départs (mobile uniquement) — collante en haut */}
+          <div className="sm:hidden sticky top-3 z-20 flex gap-1 p-1 bg-white/80 backdrop-blur-md ring-1 ring-gray-200/80 rounded-2xl overflow-hidden mb-4 shadow-card">
+            <button
+              onClick={() => setView('arr')}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all active:scale-[0.97] ${view === 'arr' ? 'bg-gold-gradient text-white shadow-gold' : 'text-ink-muted'}`}
+            >
+              ✈️ Arrivées
+            </button>
+            <button
+              onClick={() => setView('dep')}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all active:scale-[0.97] ${view === 'dep' ? 'bg-gold-gradient text-white shadow-gold' : 'text-ink-muted'}`}
+            >
+              🛫 Départs
+            </button>
           </div>
 
           {listLoading ? (
@@ -538,10 +585,10 @@ export default function Home() {
           ) : arrivals.length === 0 && departures.length === 0 ? (
             <div className="text-center py-12 text-sm text-gray-400">Aucun participant pour l&apos;instant.</div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              {/* Colonne Arrivées */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
+            <div key={view} className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-4">
+              {/* Colonne Arrivées — masquée sur mobile si la bascule est sur Départs */}
+              <div className={view === 'arr' ? '' : 'hidden sm:block'}>
+                <div className="hidden sm:flex items-center gap-2 mb-3">
                   <span className="text-xs font-semibold text-ink uppercase tracking-wider">✈️ Arrivées</span>
                   <span className="text-xs text-gray-400">{arrFilter || 'tous les jours'}</span>
                 </div>
@@ -549,14 +596,14 @@ export default function Home() {
                   {arrivals.length === 0 ? (
                     <p className="text-xs text-gray-400 py-4">Aucune arrivée ce jour-là.</p>
                   ) : (
-                    arrivals.map((p, i) => <ParticipantCard key={i} p={p} primary="arr" />)
+                    arrivals.map((p, i) => <ParticipantCard key={i} p={p} primary="arr" index={i} />)
                   )}
                 </div>
               </div>
 
-              {/* Colonne Départs */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
+              {/* Colonne Départs — masquée sur mobile si la bascule est sur Arrivées */}
+              <div className={view === 'dep' ? '' : 'hidden sm:block'}>
+                <div className="hidden sm:flex items-center gap-2 mb-3">
                   <span className="text-xs font-semibold text-ink uppercase tracking-wider">🛫 Départs</span>
                   <span className="text-xs text-gray-400">{depFilter || 'tous les jours'}</span>
                 </div>
@@ -564,7 +611,7 @@ export default function Home() {
                   {departures.length === 0 ? (
                     <p className="text-xs text-gray-400 py-4">Aucun départ ce jour-là.</p>
                   ) : (
-                    departures.map((p, i) => <ParticipantCard key={i} p={p} primary="dep" />)
+                    departures.map((p, i) => <ParticipantCard key={i} p={p} primary="dep" index={i} />)
                   )}
                 </div>
               </div>
