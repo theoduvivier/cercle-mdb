@@ -8,14 +8,25 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        teal: {
-          50: '#E1F5EE',
-          100: '#9FE1CB',
-          200: '#5DCAA5',
-          500: '#1D9E75',
-          700: '#0F6E56',
-          900: '#085041',
-        }
+        // Palette officielle Le Cercle MDB
+        navy: {
+          DEFAULT: '#0C1023',
+          mid: '#111530',
+          surface: '#161B41',
+        },
+        gold: {
+          DEFAULT: '#B8923E',
+          light: '#C9A24E',
+          bright: '#D4AF5A',
+        },
+        cream: {
+          DEFAULT: '#F5F0E8',
+          dark: '#EBE4D6',
+        },
+        ink: {
+          DEFAULT: '#1a1a2e',
+          muted: '#5a5a72',
+        },
       }
     },
   },

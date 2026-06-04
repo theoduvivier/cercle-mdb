@@ -46,3 +46,27 @@ export async function POST(req: Request) {
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 })
   return NextResponse.json(result.data)
 }
+
+export async function DELETE(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const nom = searchParams.get('nom')
+  if (!nom?.trim()) return NextResponse.json({ error: 'nom requis' }, { status: 400 })
+
+  // La suppression nécessite la clé service role (contourne la RLS), côté serveur uniquement
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey) {
+    return NextResponse.json(
+      { error: "Suppression non configurée : ajoute SUPABASE_SERVICE_ROLE_KEY dans les variables d'environnement." },
+      { status: 501 }
+    )
+  }
+
+  const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
+  const { error, count } = await admin
+    .from('participants')
+    .delete({ count: 'exact' })
+    .ilike('nom', nom)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ deleted: count ?? 0 })
+}
