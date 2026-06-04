@@ -124,7 +124,8 @@ function groupBy<T>(arr: T[], key: keyof T): Record<string, T[]> {
 export default function Home() {
   const [tab, setTab] = useState<'form' | 'list'>('form')
   const [participants, setParticipants] = useState<Participant[]>([])
-  const [filter, setFilter] = useState('all')
+  const [arrFilter, setArrFilter] = useState('')
+  const [depFilter, setDepFilter] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [listLoading, setListLoading] = useState(false)
@@ -222,10 +223,8 @@ export default function Home() {
   }
 
   const filtered = participants.filter(p => {
-    if (filter === 'arr-15') return p.arr_date === ARR_DATES[0]
-    if (filter === 'arr-16') return p.arr_date === ARR_DATES[1]
-    if (filter === 'dep-18') return p.dep_date === DEP_DATES[0]
-    if (filter === 'dep-19') return p.dep_date === DEP_DATES[1]
+    if (arrFilter && p.arr_date !== arrFilter) return false
+    if (depFilter && p.dep_date !== depFilter) return false
     return true
   })
 
@@ -475,43 +474,58 @@ export default function Home() {
       {/* LIST TAB */}
       {tab === 'list' && (
         <>
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {[
-              { num: participants.length, label: 'Participants' },
-              { num: participants.filter(p => p.arr_date === ARR_DATES[0]).length, label: 'Arrivent le 15' },
-              { num: participants.filter(p => p.dep_date === DEP_DATES[1]).length, label: 'Repartent le 19' },
-            ].map(({ num, label }) => (
-              <div key={label} className="bg-gray-100 rounded-xl p-3 text-center">
-                <div className="text-2xl font-medium text-ink">{num}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{label}</div>
-              </div>
-            ))}
-          </div>
-
           {/* Filters */}
-          <div className="flex gap-2 flex-wrap mb-4">
-            {[
-              { key: 'all', label: 'Tous' },
-              { key: 'arr-15', label: 'Arrive le 15' },
-              { key: 'arr-16', label: 'Arrive le 16' },
-              { key: 'dep-18', label: 'Repart le 18' },
-              { key: 'dep-19', label: 'Repart le 19' },
-            ].map(f => (
+          <div className="space-y-2 mb-4">
+            {/* Arrivée */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider w-16 flex-shrink-0">✈️ Arrivée</span>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setArrFilter('')}
+                  className={`px-3 py-1 rounded-full text-xs border transition-colors ${arrFilter === '' ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                >
+                  Toutes
+                </button>
+                {ARR_DATES.map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setArrFilter(arrFilter === d ? '' : d)}
+                    className={`px-3 py-1 rounded-full text-xs border transition-colors ${arrFilter === d ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Départ */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider w-16 flex-shrink-0">🛫 Départ</span>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setDepFilter('')}
+                  className={`px-3 py-1 rounded-full text-xs border transition-colors ${depFilter === '' ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                >
+                  Tous
+                </button>
+                {DEP_DATES.map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setDepFilter(depFilter === d ? '' : d)}
+                    className={`px-3 py-1 rounded-full text-xs border transition-colors ${depFilter === d ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end">
               <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`px-3 py-1 rounded-full text-xs border transition-colors ${filter === f.key ? 'bg-gray-200 text-ink border-gray-300' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                onClick={fetchParticipants}
+                className="px-3 py-1 rounded-full text-xs border bg-white text-gray-500 border-gray-200 hover:border-gray-300 transition-colors"
               >
-                {f.label}
+                ↻ Actualiser
               </button>
-            ))}
-            <button
-              onClick={fetchParticipants}
-              className="ml-auto px-3 py-1 rounded-full text-xs border bg-white text-gray-500 border-gray-200 hover:border-gray-300 transition-colors"
-            >
-              ↻ Actualiser
-            </button>
+            </div>
           </div>
 
           {listLoading ? (
