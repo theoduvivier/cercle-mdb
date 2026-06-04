@@ -440,7 +440,6 @@ export default function Home() {
                           return a.arr_time.localeCompare(b.arr_time)
                         })
                         .map((p, i) => {
-                          const sameTime = group.filter(x => x.arr_time && x.arr_time === p.arr_time).length > 1
                           return (
                             <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 flex gap-4 items-start hover:border-teal-200 hover:shadow-sm transition-all">
                               {/* Heure d'arrivée bien visible */}
@@ -453,11 +452,6 @@ export default function Home() {
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-sm font-semibold text-gray-900">{p.nom}</span>
                                   {p.arr_flight && <span className="text-xs text-gray-400">{p.arr_flight}</span>}
-                                  {sameTime && (
-                                    <span className="text-xs bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full border border-amber-100">
-                                      groupe possible
-                                    </span>
-                                  )}
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">
                                   🛫 Départ {p.dep_date}{p.dep_time ? ` à ${p.dep_time}` : ''}{p.dep_flight ? ` · ${p.dep_flight}` : ''}
