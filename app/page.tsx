@@ -62,14 +62,18 @@ export default function Home() {
     if (!form.dep_date) { alert('Sélectionne ta date de départ.'); return }
     setLoading(true)
     try {
-      await fetch('/api/participants', {
+      const res = await fetch('/api/participants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || `Erreur serveur (${res.status})`)
+      }
       setSubmitted(true)
     } catch (e) {
-      alert('Erreur lors de l\'enregistrement.')
+      alert(`Erreur lors de l'enregistrement : ${e instanceof Error ? e.message : 'inconnue'}`)
       console.error(e)
     } finally {
       setLoading(false)
